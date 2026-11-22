@@ -1,0 +1,20 @@
+{
+  "name": "web-vpn-monitor",
+  "version": "1.0.0",
+  "description": "WireGuard VPN Monitor Versi 1.0 Edition - monitoring user, DNS, dan koneksi",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "reset-password": "node src/reset-password.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-session": "^1.18.1"
+  }
+}

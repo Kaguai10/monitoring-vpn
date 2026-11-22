@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <%- include('partials/head', { title: 'Settings' }) %>
+</head>
+<body>
+  <%- include('partials/nav', { admin, demoMode, page }) %>
+
+  <main class="main-content">
+    <header class="page-header">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div>
+        <h1>Settings</h1>
+        <p class="page-subtitle">Konfigurasi password, DNS filter, dan sistem</p>
+      </div>
+    </header>
+
+    <!-- Change Password -->
+    <div class="card settings-section">
+      <div class="card-header">
+        <h3>Ganti Password Admin</h3>
+      </div>
+      <form id="changePasswordForm" class="settings-form">
+        <div class="form-group">
+          <label>Password Lama</label>
+          <div class="input-wrapper">
+            <input type="password" id="currentPassword" placeholder="Password saat ini" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Password Baru (min. 8 karakter)</label>
+            <div class="input-wrapper">
+              <input type="password" id="newPassword" placeholder="Password baru" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Konfirmasi Password Baru</label>
+            <div class="input-wrapper">
+              <input type="password" id="confirmPassword" placeholder="Ulangi password baru" required>
+            </div>
+          </div>
+        </div>
+        <div id="pwdError" class="login-error" style="display:none;"></div>
+        <div id="pwdSuccess" class="login-success" style="display:none;"></div>
+        <button type="submit" class="btn-primary">Simpan Password</button>
+      </form>
+    </div>
+
+    <!-- Blocked DNS Management -->
+    <div class="card settings-section">
+      <div class="card-header">
+        <h3>Daftar DNS Diblokir</h3>
+        <span class="card-badge badge-red" id="blockedDnsCount">0</span>
+      </div>
+      <p class="settings-desc">Domain dalam daftar ini akan ditandai sebagai diblokir ketika user VPN mengaksesnya.</p>
+      <div class="dns-manage-input">
+        <div class="input-wrapper">
+          <input type="text" id="newBlockedDns" placeholder="tambahkan domain (contoh: facebook.com)">
+        </div>
+        <button class="btn-primary" onclick="addBlockedDns()">Tambah</button>
+      </div>
+      <div class="dns-tags" id="blockedDnsTags"></div>
+    </div>
+
+    <!-- AI DNS Management -->
+    <div class="card settings-section">
+      <div class="card-header">
+        <h3>Daftar DNS Layanan AI</h3>
+        <span class="card-badge badge-blue" id="aiDnsCount">0</span>
+      </div>
+      <div class="ai-block-setting">
+        <div>
+          <strong>Blokir layanan AI</strong>
+          <p class="settings-desc">Aktif: akses AI diblokir. Nonaktif: akses AI diizinkan.</p>
+        </div>
+        <label class="ai-switch" for="aiBlockingToggle">
+          <input type="checkbox" id="aiBlockingToggle" role="switch" aria-label="Blokir layanan AI" onchange="setAiBlocking(this.checked)">
+          <span class="ai-switch-track" aria-hidden="true"></span>
+          <span class="ai-switch-state" id="aiBlockingLabel">Memuat…</span>
+        </label>
+      </div>
+      <div class="dns-manage-input">
+        <div class="input-wrapper">
+          <input type="text" id="newAiDnsDomain" placeholder="domain (contoh: chatgpt.com)">
+        </div>
+        <div class="input-wrapper">
+          <input type="text" id="newAiDnsService" placeholder="nama layanan (contoh: ChatGPT)">
+        </div>
+        <button class="btn-primary" onclick="addAiDns()">Tambah</button>
+      </div>
+      <div class="dns-tags" id="aiDnsTags"></div>
+    </div>
+
+    <div class="card settings-section vpn-internet-card">
+      <div class="card-header">
+        <h3>Akses Internet VPN</h3>
+      </div>
+      <div class="ai-block-setting">
+        <div>
+          <strong id="vpnInternetStateLabel">Memuat pengaturan akses internet…</strong>
+          <p class="settings-desc">Nonaktifkan untuk membatasi user VPN ke jaringan internal dan DNS VPN saja.</p>
+        </div>
+        <label class="ai-switch" for="vpnInternetToggle">
+          <input type="checkbox" id="vpnInternetToggle" role="switch" aria-label="Izinkan user VPN mengakses internet" onchange="setVpnInternetAccess(this.checked)">
+          <span class="ai-switch-state" id="vpnInternetToggleLabel">Memuat…</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="system-panels">
+    <!-- System Config -->
+    <div class="card settings-section system-card">
+      <div class="card-header">
+        <h3>Konfigurasi Sistem</h3>
+      </div>
+      <div class="config-list" id="configList">
+        <div class="loading-spinner small">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="card settings-section system-card">
+      <div class="card-header">
+        <h3>Info Sistem</h3>
+      </div>
+      <div class="config-list" id="systemInfoList">
+        <div class="loading-spinner small">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- Reset Data -->
+    <div class="card settings-section reset-section">
+      <div class="card-header">
+        <h3>Reset Data</h3>
+      </div>
+      <div class="reset-warning">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <p>Reset akan menghapus SEMUA data dan memulai dari awal. Data VPN akan terisi otomatis dari WireGuard pada polling berikutnya. Tindakan ini tidak dapat dibatalkan.</p>
+      </div>
+      <ul class="reset-confirm-list">
+        <li>Semua data user VPN</li>
+        <li>Semua DNS queries</li>
+        <li>Semua notifikasi</li>
+        <li>Semua riwayat koneksi</li>
+        <li class="safe">Admin account tetap aman</li>
+        <li class="safe">Settings (DNS block/AI list) tetap aman</li>
+      </ul>
+      <button class="btn-danger" onclick="showResetModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Reset Semua Data
+      </button>
+    </div>
+  </main>
+
+  <!-- Reset Confirmation Modal -->
+  <div class="modal-overlay" id="resetModal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Konfirmasi Reset</h2>
+        <button class="modal-close" onclick="hideResetModal();">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Apakah Anda yakin ingin menghapus SEMUA data? Data VPN akan terisi otomatis dari WireGuard setelah reset.</p>
+        <div style="display:flex;gap:12px;margin-top:16px;">
+          <button class="btn-secondary" onclick="hideResetModal();">Batal</button>
+          <button class="btn-danger" onclick="confirmReset()">Ya, Reset Semua</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('partials/footer', { jsFile: 'settings' }) %>

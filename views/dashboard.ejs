@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <%- include('partials/head', { title: 'Dashboard' }) %>
+</head>
+<body>
+  <%- include('partials/nav', { admin, demoMode, page }) %>
+
+  <main class="main-content">
+    <header class="page-header">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div>
+        <h1>Dashboard</h1>
+        <p class="page-subtitle">Monitoring VPN, koneksi, dan DNS secara real-time</p>
+      </div>
+      <div class="header-right">
+        <div class="monitor-control" id="monitorControl">
+          <span class="monitor-status" id="monitorStatusText">
+            <span class="monitor-dot monitor-dot-active"></span>
+            <span>Active</span>
+          </span>
+          <button class="btn-monitor btn-monitor-stop" id="monitorBtn" onclick="toggleMonitor()">Stop</button>
+        </div>
+        <label class="auto-refresh-toggle">
+          <input type="checkbox" id="autoRefresh" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Auto-refresh</span>
+        </label>
+        <span class="last-update" id="lastUpdate">-</span>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-blue">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total VPN Slots</span>
+          <span class="stat-value" id="statTotalSlots">-</span>
+          <span class="stat-sub" id="statTotalSlotsSub">peer terdaftar</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-green">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">User Online</span>
+          <span class="stat-value" id="statConnected">-</span>
+          <span class="stat-sub" id="statConnectedSub">terhubung</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-purple">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Kekuatan Sinyal</span>
+          <span class="stat-value" id="statStrength">-</span>
+          <span class="stat-sub" id="statStrengthSub">rata-rata</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon-orange">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">DNS Query Hari Ini</span>
+          <span class="stat-value" id="statDnsToday">-</span>
+          <span class="stat-sub" id="statDnsTodaySub">total request</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="chart-grid">
+      <div class="card chart-card-wide">
+        <div class="card-header">
+          <h3>Trafik DNS (1 Jam Terakhir)</h3>
+          <span class="card-badge" id="dnsRateBadge">- req/menit</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="dnsTrafficChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>Status VPN</h3>
+        </div>
+        <div class="chart-container donut-container">
+          <canvas id="vpnStatusChart"></canvas>
+          <div class="donut-center">
+            <span class="donut-value" id="donutValue">-</span>
+            <span class="donut-label">Online</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="chart-grid">
+      <div class="card chart-card-wide">
+        <div class="card-header">
+          <h3>Top 5 DNS Paling Sering Dikunjungi (24 Jam)</h3>
+        </div>
+        <div class="chart-container">
+          <canvas id="topDnsChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>Ringkasan</h3>
+        </div>
+        <div class="summary-list">
+          <div class="summary-item">
+            <div class="summary-dot dot-green"></div>
+            <div class="summary-text">
+              <span class="summary-label">DNS Normal</span>
+              <span class="summary-value" id="summaryDnsNormal">-</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-dot dot-red"></div>
+            <div class="summary-text">
+              <span class="summary-label">DNS Diblokir</span>
+              <span class="summary-value" id="summaryDnsBlocked">-</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-dot dot-blue"></div>
+            <div class="summary-text">
+              <span class="summary-label">Akses AI</span>
+              <span class="summary-value" id="summaryDnsAi">-</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-dot dot-purple"></div>
+            <div class="summary-text">
+              <span class="summary-label">Total Download</span>
+              <span class="summary-value" id="summaryTotalRx">-</span>
+            </div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-dot dot-cyan"></div>
+            <div class="summary-text">
+              <span class="summary-label">Total Upload</span>
+              <span class="summary-value" id="summaryTotalTx">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <%- include('partials/footer', { jsFile: 'dashboard' }) %>

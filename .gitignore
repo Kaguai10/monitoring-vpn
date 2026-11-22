@@ -1,0 +1,12 @@
+node_modules/
+data/
+*.csv
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+ssl/
+dist/
+.DS_Store
+Thumbs.db

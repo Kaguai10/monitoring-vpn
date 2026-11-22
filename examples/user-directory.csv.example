@@ -1,0 +1,3 @@
+name,email,target_file,IP VPN
+client01,client01@example.invalid,client01.conf,10.66.66.101
+client02,client02@example.invalid,client02.conf,10.66.66.102
