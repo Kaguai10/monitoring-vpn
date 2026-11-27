@@ -10,6 +10,7 @@ function normalizedDomains(list) {
 }
 
 export function writeDnsmasqBlocklist() {
+  if (config.demoMode) return false;
   const blocked = JSON.parse(getSetting('blocked_dns_list', JSON.stringify(BLOCKED_DNS)));
   const ai = JSON.parse(getSetting('ai_dns_list', JSON.stringify(AI_DNS)));
   const domains = [...blocked];
@@ -19,4 +20,5 @@ export function writeDnsmasqBlocklist() {
   const content = '# Managed by Web VPN Monitor settings. Do not edit manually.\n'
     + normalizedDomains(domains).map(domain => `address=/${domain}/`).join('\n') + '\n';
   writeFileSync(config.dnsmasqBlockedConfigPath, content, { mode: 0o644 });
+  return true;
 }

@@ -1,15 +1,12 @@
-# Install dependencies for the same Node 20 runtime used by the app. Native
-# dependencies use their Node 20 prebuilt binaries; no Debian apt access needed.
+# Install dependencies for the same Node 20 runtime used by the app.
 FROM node:20-slim
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Build native dependencies against this image's Node runtime. Prebuilt
-# better-sqlite3 binaries can depend on a host-specific libnode shared library.
+# Use the Node 20 prebuilt native addon and verify that SQLite loads in this image.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 make g++ wireguard-tools \
-    && npm_config_build_from_source=true npm ci --omit=dev \
-    && apt-get purge -y --auto-remove python3 make g++ \
+    && apt-get install -y --no-install-recommends wireguard-tools \
+    && npm ci --omit=dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .

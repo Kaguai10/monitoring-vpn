@@ -73,9 +73,9 @@ services:
     volumes:
       - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/nginx-main.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
       - ./public:/usr/share/nginx/html/public:ro
-      # SSL certificates (uncomment jika pakai SSL)
-      # - ./ssl:/etc/nginx/ssl:ro
+      # Sertifikat self-signed runtime dibuat oleh run.sh dan tidak masuk Git.
 
     depends_on:
       - app

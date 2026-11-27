@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { randomBytes } from 'crypto';
 import { execSync } from 'child_process';
 
 dotenv.config();
@@ -30,8 +31,9 @@ function autoDetectDemoMode() {
 
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
+  dbPath: process.env.DB_PATH || null,
   nodeEnv: process.env.NODE_ENV || 'development',
-  sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me-' + Date.now(),
+  sessionSecret: process.env.SESSION_SECRET || randomBytes(32).toString('hex'),
   adminUsername: process.env.ADMIN_USERNAME || 'administrator',
   adminPassword: process.env.ADMIN_PASSWORD || null,
 
@@ -54,7 +56,7 @@ export const config = {
   demoMode: autoDetectDemoMode(),
 
   // Reset
-  resetKey: process.env.RESET_KEY || 'default-reset-key-change-me',
+  resetKey: process.env.RESET_KEY || randomBytes(24).toString('hex'),
 };
 
 export default config;

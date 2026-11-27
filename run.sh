@@ -50,6 +50,11 @@ try:
     net=ipaddress.ip_network(network_text,strict=True)
     server,first,last=map(ipaddress.ip_address,(server_text,first_text,last_text))
 except ValueError as e: raise SystemExit(f'[ERROR] IP/subnet tidak valid: {e}')
+try:
+    public_ip=ipaddress.ip_address(public)
+    if not public_ip.is_global: raise SystemExit('[ERROR] WG_PUBLIC_IP bukan IPv4 global yang dapat dijangkau internet; gunakan alamat publik sebenarnya atau hostname DNS publik.')
+except ValueError:
+    pass
 if net.version!=4 or any(x.version!=4 for x in (server,first,last)): raise SystemExit('[ERROR] VPN_NETWORK harus IPv4.')
 if server not in net or first not in net or last not in net or first>last: raise SystemExit('[ERROR] Server dan range client harus valid di dalam VPN_NETWORK.')
 if server in (net.network_address,net.broadcast_address) or first==net.network_address or last==net.broadcast_address or first<=server<=last: raise SystemExit('[ERROR] Range mencakup alamat network/broadcast/server.')
@@ -86,7 +91,7 @@ command -v apt-get >/dev/null 2>&1 || fail 'Host yang didukung saat ini Debian/U
 info 'Memasang dependensi host.'
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-packages=(wireguard-tools dnsmasq nftables python3 curl ca-certificates)
+packages=(wireguard-tools dnsmasq nftables python3 curl ca-certificates openssl)
 command -v docker >/dev/null 2>&1 || packages+=(docker.io)
 apt-get install -y "${packages[@]}"
 if ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
@@ -105,6 +110,34 @@ if [[ "$FRESH_SETUP" -eq 1 && -f "$ROOT_DIR/data/monitor.db" ]]; then
   info "Data bawaan dipindahkan ke $DATA_BACKUP agar database deployment baru dibuat bersih."
 fi
 install -d -m 700 /etc/wireguard /etc/wireguard/clients /etc/webvpn "$ROOT_DIR/data"
+install -d -m 700 "$ROOT_DIR/ssl"
+if [[ "$WG_PUBLIC_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  CERT_SAN="IP:${WG_PUBLIC_IP}"
+  CERT_MATCH=(-checkip "$WG_PUBLIC_IP")
+else
+  CERT_SAN="DNS:${WG_PUBLIC_IP}"
+  CERT_MATCH=(-checkhost "$WG_PUBLIC_IP")
+fi
+CERT_VALID=0
+if [[ -s "$ROOT_DIR/ssl/fullchain.pem" && -s "$ROOT_DIR/ssl/privkey.pem" ]] \
+  && openssl x509 -in "$ROOT_DIR/ssl/fullchain.pem" -checkend 2592000 -noout >/dev/null 2>&1 \
+  && openssl x509 -in "$ROOT_DIR/ssl/fullchain.pem" "${CERT_MATCH[@]}" -noout >/dev/null 2>&1; then
+  CERT_VALID=1
+fi
+if [[ "$CERT_VALID" -eq 0 ]]; then
+  CERT_KEY_TMP="$ROOT_DIR/ssl/privkey.pem.tmp"
+  CERT_FULLCHAIN_TMP="$ROOT_DIR/ssl/fullchain.pem.tmp"
+  openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+    -keyout "$CERT_KEY_TMP" \
+    -out "$CERT_FULLCHAIN_TMP" \
+    -subj "/CN=${WG_PUBLIC_IP}" \
+    -addext "subjectAltName=${CERT_SAN}" >/dev/null 2>&1
+  chmod 600 "$CERT_KEY_TMP"
+  chmod 644 "$CERT_FULLCHAIN_TMP"
+  mv -f "$CERT_KEY_TMP" "$ROOT_DIR/ssl/privkey.pem"
+  mv -f "$CERT_FULLCHAIN_TMP" "$ROOT_DIR/ssl/fullchain.pem"
+  info "Sertifikat self-signed dibuat/diperbarui untuk ${WG_PUBLIC_IP}; browser akan menampilkan peringatan kepercayaan."
+fi
 umask 077
 if [[ ! -f "$WG_CONFIG_PATH" ]]; then
   PRIVATE_KEY="$(wg genkey)"
@@ -224,7 +257,8 @@ install -m 644 "$ROOT_DIR/deploy/blocked-services.conf" /var/lib/webvpn/blocked-
 cat > /etc/dnsmasq.d/webvpn.conf <<EOF
 interface=${WG_INTERFACE}
 listen-address=${VPN_SERVER_IP}
-bind-dynamic
+except-interface=lo
+bind-interfaces
 no-resolv
 server=${VPN_DNS_UPSTREAM:-1.1.1.1}
 log-queries=extra
@@ -272,7 +306,7 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: 
   ufw route allow in on "${WG_INTERFACE}" out on "$EGRESS" from "$VPN_NETWORK" >/dev/null
   ufw allow "${WG_PORT}/udp" >/dev/null
   ufw allow 80/tcp >/dev/null
-  ufw allow "${PORT}/tcp" >/dev/null
+  ufw allow 443/tcp >/dev/null
 fi
 
 python3 - "$ROOT_DIR/data/participants.csv" "$VPN_NETWORK" "$VPN_SERVER_IP" "$VPN_CLIENT_RANGE_START" "$VPN_CLIENT_RANGE_END" "$CLIENT_NAME_PREFIX" "$CLIENT_EMAIL_DOMAIN" <<'PY'
@@ -300,4 +334,4 @@ cd "$ROOT_DIR"
 "${COMPOSE[@]}" -f "$ROOT_DIR/docker-compose.prod.yml" up -d --build
 printf 'initialized\n' > "$ROOT_DIR/data/.webvpn-install-id"
 chmod 600 "$ROOT_DIR/data/.webvpn-install-id"
-printf '\nSetup selesai.\nWeb monitor: http://<IP-server>/ (Nginx)\nApp langsung: http://<IP-server>:%s\nWireGuard: %s:%s/udp\nClient config: /etc/wireguard/clients/\n' "$PORT" "$WG_PUBLIC_IP" "$WG_PORT"
+printf '\nSetup selesai.\nWeb monitor: http://%s/ atau https://%s/ (Nginx; HTTPS self-signed)\nWireGuard: %s:%s/udp\nClient config: /etc/wireguard/clients/\n' "$WG_PUBLIC_IP" "$WG_PUBLIC_IP" "$WG_PUBLIC_IP" "$WG_PORT"

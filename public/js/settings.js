@@ -239,8 +239,8 @@ document.getElementById('changePasswordForm')?.addEventListener('submit', async 
     return;
   }
 
-  if (newPwd.length < 8) {
-    errorDiv.textContent = 'Password baru minimal 8 karakter';
+  if (newPwd.length < 12) {
+    errorDiv.textContent = 'Password baru minimal 12 karakter';
     errorDiv.style.display = 'block';
     return;
   }

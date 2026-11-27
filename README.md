@@ -4,18 +4,16 @@ Web VPN Monitor menjalankan server WireGuard dan dashboard untuk memantau koneks
 
 ## Cara memasang di server baru
 
-Server yang didukung adalah Debian atau Ubuntu dengan akses `sudo`/root, koneksi internet, dan alamat publik yang dapat dijangkau user VPN.
+Installer tidak bergantung pada AWS atau penyedia cloud tertentu. Installer mendukung server/VPS/VM Debian atau Ubuntu dengan `systemd`, akses `sudo`/root, koneksi internet, kernel yang menyediakan WireGuard, dan alamat publik atau hostname yang dapat dijangkau user VPN. Beberapa layanan container/hosting membatasi perubahan interface dan firewall; lingkungan seperti itu tidak dapat menjalankan installer ini.
 
 ### 1. Ambil project
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y git
-git clone <URL-REPOSITORY-GITHUB>
-cd web-vpn
+git clone https://github.com/Kaguai10/monitoring-vpn.git
+cd monitoring-vpn
 ```
-
-Ganti `<URL-REPOSITORY-GITHUB>` dengan URL repository milikmu.
 
 ### 2. Buat dan isi `.env`
 
@@ -29,7 +27,7 @@ Atur minimal nilai berikut sebelum installer dijalankan:
 | Variable | Nilai yang harus diatur |
 |---|---|
 | `ADMIN_USERNAME` | Nama admin dashboard |
-| `ADMIN_PASSWORD` | Password awal yang kuat, minimal 12 karakter |
+| `ADMIN_PASSWORD` | Password awal yang kuat, minimal 12 karakter; berlaku juga saat ganti/reset password |
 | `WG_PUBLIC_IP` | IPv4 publik server atau hostname DNS yang mengarah ke server |
 | `WG_PORT` | Port UDP WireGuard; default `51820` |
 | `WG_INTERFACE` | Nama interface WireGuard; default `wg0` |
@@ -57,15 +55,12 @@ Jika `.env` belum ada, `run.sh` membuat file dengan izin privat lalu berhenti. I
 
 Pada firewall cloud/security group, izinkan:
 
-- TCP `80` untuk dashboard melalui Nginx.
+- TCP `80` dan `443` untuk dashboard melalui Nginx.
 - UDP sesuai `WG_PORT` untuk koneksi WireGuard.
-- TCP sesuai `PORT` hanya jika app akan diakses langsung tanpa Nginx.
 
 Jika UFW aktif di server, installer menambahkan aturan untuk port tersebut. Pastikan juga DNS hostname pada `WG_PUBLIC_IP` sudah mengarah ke server.
 
-Dashboard tersedia di `http://<IP-atau-hostname-server>/`. App juga mendengarkan langsung di `http://<IP-atau-hostname-server>:<PORT>`.
-
-Setup bawaan menyediakan HTTP di port 80. Untuk login melalui jaringan publik, pasang HTTPS pada reverse proxy atau terminasi TLS sebelum membagikan alamat dashboard.
+Dashboard tersedia di `http://<IP-atau-hostname-server>/` dan `https://<IP-atau-hostname-server>/`. Saat `sudo ./run.sh` dijalankan, installer otomatis membuat sertifikat self-signed yang cocok dengan `WG_PUBLIC_IP` dan memasangnya ke Nginx. Tidak perlu mengunggah atau membuat sertifikat secara manual. Browser akan menampilkan peringatan kepercayaan; pengguna bisa melanjutkan, tetapi untuk pemakaian publik sebaiknya ganti dengan sertifikat dari CA tepercaya. App internal hanya menerima koneksi dari localhost melalui Nginx; port `PORT` tidak perlu dibuka.
 
 File konfigurasi WireGuard user dibuat di `/etc/wireguard/clients/`. File tersebut berisi private key dan hanya boleh dibagikan kepada pemilik akun terkait.
 
@@ -112,6 +107,12 @@ sudo systemctl status dnsmasq
 sudo systemctl status webvpn-firewall
 ```
 
+Jika lupa password admin, reset melalui container. Tanpa argumen, perintah membuat password acak dan menampilkannya sekali:
+
+```bash
+sudo docker compose -f docker-compose.prod.yml exec app node src/reset-password.js
+```
+
 Untuk memperbarui aplikasi setelah mengambil perubahan source terbaru:
 
 ```bash
@@ -126,6 +127,7 @@ Saat dijalankan ulang, script mempertahankan database serta konfigurasi WireGuar
 Pengaturan berikut tersedia di `.env`:
 
 - `SESSION_SECRET` dan `RESET_KEY` dibuat otomatis jika kosong.
+- `DB_PATH` opsional untuk memilih file SQLite khusus; kosong berarti `data/monitor.db`.
 - `CLIENT_ALLOWED_IPS` menentukan rute trafik client. Contoh mengarahkan seluruh trafik IPv4 dan IPv6 ke tunnel; forwarding IPv6 diblokir oleh konfigurasi server ini.
 - `VPN_DNS_UPSTREAM` memilih DNS resolver upstream dnsmasq.
 - `VPN_EGRESS_INTERFACE` memilih interface keluar internet; jika kosong, installer mendeteksi default route.
@@ -152,8 +154,6 @@ git diff --check
 git check-ignore .env data/monitor.db data/participants.csv
 ```
 
-Repository ini sebelumnya memiliki file CSV contoh pada commit awal. Menghapusnya dari versi saat ini tidak menghapus salinan pada riwayat Git yang sudah pernah dipush. Jika repository akan dibuat publik, bersihkan riwayat tersebut atau gunakan repository baru yang tidak membawa riwayat lama sebelum push.
-
 ## Pengembangan lokal
 
 Untuk menjalankan app tanpa menyiapkan WireGuard, isi `.env` lokal dan set `DEMO_MODE=true`, lalu jalankan:
@@ -163,4 +163,4 @@ npm ci
 npm start
 ```
 
-Jangan gunakan file `.env` produksi atau database produksi untuk pengembangan.
+Mode demo memakai data simulasi dan tidak menulis aturan DNS/firewall host. Jangan gunakan file `.env` produksi atau database produksi untuk pengembangan.

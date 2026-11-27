@@ -2,6 +2,10 @@ import { execSync } from 'child_process';
 import { readFileSync, existsSync } from 'fs';
 import config from '../config.js';
 
+let interfaceCommandWarned = false;
+let allInterfacesCommandWarned = false;
+let configFileWarned = false;
+
 /**
  * Service untuk membaca status WireGuard.
  * Menggunakan `wg show all dump` yang menghasilkan format tab-separated.
@@ -22,21 +26,31 @@ export function getWireGuardPeers() {
   let output;
   let source = '';
   try {
-    output = execSync(`wg show ${config.wgInterface} dump`, {
+    output = execSync(`wg show ${config.wgInterface} dump 2>/dev/null`, {
       encoding: 'utf8',
       timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
     });
     source = `wg show ${config.wgInterface} dump`;
+    interfaceCommandWarned = false;
   } catch (e) {
-    console.warn(`[WireGuard] "wg show ${config.wgInterface} dump" gagal: ${e.message}`);
+    if (!interfaceCommandWarned) {
+      console.warn(`[WireGuard] "wg show ${config.wgInterface} dump" gagal: ${e.message}`);
+      interfaceCommandWarned = true;
+    }
     try {
-      output = execSync('wg show all dump', {
+      output = execSync('wg show all dump 2>/dev/null', {
         encoding: 'utf8',
         timeout: 5000,
+        stdio: ['ignore', 'pipe', 'ignore'],
       });
       source = 'wg show all dump';
+      allInterfacesCommandWarned = false;
     } catch (e2) {
-      console.warn(`[WireGuard] "wg show all dump" juga gagal: ${e2.message}`);
+      if (!allInterfacesCommandWarned) {
+        console.warn(`[WireGuard] "wg show all dump" juga gagal: ${e2.message}`);
+        allInterfacesCommandWarned = true;
+      }
       return [];
     }
   }
@@ -105,9 +119,13 @@ export function getWireGuardPeers() {
  */
 export function getPeersFromConfig() {
   if (!existsSync(config.wgConfigPath)) {
-    console.warn(`[WireGuard] File config tidak ditemukan: ${config.wgConfigPath}`);
+    if (!configFileWarned) {
+      console.warn(`[WireGuard] File config tidak ditemukan: ${config.wgConfigPath}`);
+      configFileWarned = true;
+    }
     return [];
   }
+  configFileWarned = false;
 
   let content;
   try {

@@ -7,6 +7,8 @@
  */
 
 import { updateAdminPassword } from './db.js';
+import { randomInt } from 'crypto';
+import config from './config.js';
 
 const newPassword = process.argv[2];
 
@@ -14,7 +16,7 @@ function generateRandomPassword(length = 16) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
+    result += chars[randomInt(chars.length)];
   }
   return result;
 }
@@ -22,18 +24,18 @@ function generateRandomPassword(length = 16) {
 function main() {
   const pwd = newPassword || generateRandomPassword();
 
-  if (pwd.length < 8) {
-    console.error('Error: Password minimal 8 karakter');
+  if (pwd.length < 12) {
+    console.error('Error: Password minimal 12 karakter');
     process.exit(1);
   }
 
-  const success = updateAdminPassword('administrator', pwd);
+  const success = updateAdminPassword(config.adminUsername, pwd);
 
   if (success) {
     console.log('========================================');
-    console.log('  Password administrator berhasil direset!');
+    console.log('  Password admin berhasil direset!');
     console.log('========================================');
-    console.log(`  Username: administrator`);
+    console.log(`  Username: ${config.adminUsername}`);
     console.log(`  Password: ${pwd}`);
     console.log('========================================');
     if (!newPassword) {
@@ -42,7 +44,7 @@ function main() {
     console.log('  Simpan password ini di tempat aman!');
     console.log('========================================');
   } else {
-    console.error('Error: Gagal reset password. Pastikan user "administrator" ada di database.');
+    console.error(`Error: Gagal reset password. Pastikan user "${config.adminUsername}" ada di database.`);
     process.exit(1);
   }
 

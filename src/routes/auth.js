@@ -50,8 +50,8 @@ router.post('/change-password', (req, res) => {
     return res.status(400).json({ error: 'Password lama dan baru wajib diisi' });
   }
 
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'Password baru minimal 8 karakter' });
+  if (newPassword.length < 12) {
+    return res.status(400).json({ error: 'Password baru minimal 12 karakter' });
   }
 
   const username = req.session.admin.username;
@@ -81,16 +81,16 @@ router.post('/reset-password', (req, res) => {
     return res.status(403).json({ error: 'Reset key tidak valid' });
   }
 
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'Password baru minimal 8 karakter' });
+  if (newPassword.length < 12) {
+    return res.status(400).json({ error: 'Password baru minimal 12 karakter' });
   }
 
   // Reset password administrator
-  if (!updateAdminPassword('administrator', newPassword)) {
+  if (!updateAdminPassword(config.adminUsername, newPassword)) {
     return res.status(500).json({ error: 'Gagal reset password' });
   }
 
-  return res.json({ success: true, message: 'Password administrator berhasil direset. Silakan login.' });
+  return res.json({ success: true, message: 'Password admin berhasil direset. Silakan login.' });
 });
 
 export default router;

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import { mkdirSync } from 'fs';
 import config from './config.js';
 
@@ -9,7 +9,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(__dirname, '..', 'data');
 mkdirSync(dataDir, { recursive: true });
 
-const dbPath = join(dataDir, 'monitor.db');
+const dbPath = config.dbPath ? resolve(config.dbPath) : join(dataDir, 'monitor.db');
+mkdirSync(dirname(dbPath), { recursive: true });
 const db = new Database(dbPath);
 
 // Optimasi SQLite

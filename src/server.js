@@ -36,7 +36,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 jam
-    secure: false, // Di-belakang nginx, biarkan nginx handle SSL
+    secure: 'auto', // Cookie secure pada HTTPS; tetap kompatibel dengan HTTP lokal.
     sameSite: 'lax',
   },
 }));
@@ -97,7 +97,8 @@ app.use((err, req, res, next) => {
 // ============================================================
 // START & GRACEFUL SHUTDOWN
 // ============================================================
-const server = app.listen(config.port, () => {
+// Akses aplikasi melalui reverse proxy (Nginx), bukan langsung dari jaringan.
+const server = app.listen(config.port, '127.0.0.1', () => {
   console.log('==================================================');
   console.log('  Web VPN Monitor Versi 1.0');
   console.log('==================================================');

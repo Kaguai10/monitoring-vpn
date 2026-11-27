@@ -5,17 +5,12 @@
 
 server {
     listen 80;
-    # listen 443 ssl;                    # Uncomment untuk HTTPS
-    # ssl_certificate /etc/nginx/ssl/fullchain.pem;     # Uncomment untuk HTTPS
-    # ssl_certificate_key /etc/nginx/ssl/privkey.pem;  # Uncomment untuk HTTPS
-    # ssl_protocols TLSv1.2 TLSv1.3;
-    # ssl_ciphers HIGH:!aNULL:!MD5;
-    # ssl_prefer_server_ciphers on;
-
-    # Redirect HTTP ke HTTPS (uncomment jika pakai SSL)
-    # if ($scheme != "https") {
-    #     return 301 https://$host$request_uri;
-    # }
+    listen 443 ssl;
+    ssl_certificate /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
 
     server_name _;
 
