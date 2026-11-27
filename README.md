@@ -64,6 +64,17 @@ Dashboard tersedia di `http://<IP-atau-hostname-server>/` dan `https://<IP-atau-
 
 File konfigurasi WireGuard user dibuat di `/etc/wireguard/clients/`. File tersebut berisi private key dan hanya boleh dibagikan kepada pemilik akun terkait.
 
+Setelah deployment, daftar user dapat dikelola dari menu **Users** di dashboard:
+
+- Halaman Users dipisah menjadi **Daftar user**, **Registrasi user**, **Ekspor VPN config**, dan **Manage user**.
+- **Registrasi user baru**: tambah user manual dengan memilih IP yang masih kosong, atau import CSV. Format CSV memakai kolom `name,email,password,affiliation,target_file,IP VPN`; kolom password dan affiliation diabaikan. Import akan menampilkan duplikat sebelum perubahan diterapkan. Pilih tambah untuk mempertahankan user lama, atau ganti untuk menghapus peer dan file config lama sebelum membuat daftar baru.
+- **Ekspor VPN config**: pilih satu atau beberapa user dari tabel. Nama, email, dan IP dapat dipakai untuk mengurutkan daftar. Satu pilihan diunduh sebagai `.conf`; beberapa pilihan atau semua user diunduh sebagai ZIP.
+- **Manage user**: pulihkan user dari snapshot template awal atau hapus semua user. Template CSV tetap disimpan di `data/participants.template.csv` dan dapat diunduh dari halaman Users.
+- **Hapus user**: halaman Manage user menyediakan aksi hapus per user dengan konfirmasi, selain opsi hapus semua.
+- **Edit user**: pada halaman Manage user, nama, email, dan IP VPN tiap user dapat diubah dari tabel. Kolom nama, email, dan IP dapat diurutkan. Jika IP berubah, file config client dan peer WireGuard ikut diperbarui.
+
+Penambahan manual hanya menampilkan IP kosong yang termasuk `VPN_CLIENT_RANGE_START` sampai `VPN_CLIENT_RANGE_END`. Jika semua alamat terpakai, perluas rentang di `.env` dan jalankan kembali `sudo ./run.sh` sebelum menambah user.
+
 
 ## Membuat user dan konfigurasi VPN
 
@@ -143,8 +154,10 @@ Daftar domain blok dan akses internet user VPN dapat dikelola dari halaman Setti
 
 - `.env` dan semua file `.env.*` selain `.env.example` diabaikan Git.
 - `data/` berisi CSV user lokal dan database SQLite, serta diabaikan Git.
+- `ssl/` dan `local-backup/` diabaikan Git dan konteks Docker. Jika dibuat, `local-backup/` berisi snapshot privat deployment dan tidak boleh dibagikan secara publik.
 - File client di `/etc/wireguard/clients/`, private key, log, dan sertifikat tidak boleh dimasukkan ke repository.
 - Contoh CSV aman ada di `examples/user-directory.csv.example`; jangan taruh data produksi di sana.
+- Repository menggunakan lisensi MIT; lihat file `LICENSE`.
 
 Sebelum push perubahan, periksa:
 

@@ -205,10 +205,20 @@ export function updatePeerStatus(ip, status) {
 }
 
 /** Update info peer (nama, email) */
-export function updatePeerInfo(ip, name, email) {
+export function updatePeerInfo(ip, name, email, newIp = ip) {
   db.prepare(`
-    UPDATE vpn_peers SET name = ?, email = ?, updated_at = datetime('now') WHERE ip_address = ?
-  `).run(name, email, ip);
+    UPDATE vpn_peers SET name = ?, email = ?, ip_address = ?, allowed_ips = ?, updated_at = datetime('now') WHERE ip_address = ?
+  `).run(name, email, newIp, `${newIp}/32`, ip);
+}
+
+/** Drop current peer rows while retaining historical connection and DNS events. */
+export function removePeerRowsExcept(ips) {
+  const activeIps = new Set(ips);
+  const existing = db.prepare('SELECT ip_address FROM vpn_peers').all();
+  const remove = db.prepare('DELETE FROM vpn_peers WHERE ip_address = ?');
+  db.transaction(() => {
+    for (const peer of existing) if (!activeIps.has(peer.ip_address)) remove.run(peer.ip_address);
+  })();
 }
 
 /** Catat event koneksi */

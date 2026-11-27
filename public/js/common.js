@@ -46,16 +46,68 @@ async function api(url, options = {}) {
 
 // Logout
 async function logout() {
+  if (!await confirmAction({ title: 'Keluar dari dashboard?', message: 'Sesi admin akan diakhiri dan kamu akan kembali ke halaman login.', confirmLabel: 'Logout' })) return;
   try {
     await fetch('/logout', { method: 'POST' });
   } catch (e) { /* ignore */ }
   window.location.href = '/login';
 }
 
+function confirmAction({ title = 'Konfirmasi tindakan', message = '', details = [], confirmLabel = 'Lanjutkan', variant = 'danger' } = {}) {
+  const modal = document.getElementById('actionConfirmModal');
+  if (!modal) return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  document.getElementById('actionConfirmTitle').textContent = title;
+  document.getElementById('actionConfirmMessage').textContent = message;
+  const list = document.getElementById('actionConfirmDetails');
+  list.replaceChildren();
+  for (const item of details) {
+    const li = document.createElement('li');
+    li.textContent = String(item);
+    list.appendChild(li);
+  }
+  list.hidden = details.length === 0;
+  const accept = document.getElementById('actionConfirmAccept');
+  const cancel = document.getElementById('actionConfirmCancel');
+  const close = document.getElementById('actionConfirmClose');
+  accept.textContent = confirmLabel;
+  accept.className = variant === 'primary' ? 'btn-primary' : 'btn-danger';
+  modal.style.display = 'flex';
+  return new Promise(resolve => {
+    const finish = result => {
+      modal.style.display = 'none';
+      accept.removeEventListener('click', onAccept);
+      cancel.removeEventListener('click', onCancel);
+      close.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onEscape);
+      resolve(result);
+    };
+    const onAccept = () => finish(true);
+    const onCancel = () => finish(false);
+    const onBackdrop = event => { if (event.target === modal) finish(false); };
+    const onEscape = event => { if (event.key === 'Escape') finish(false); };
+    accept.addEventListener('click', onAccept);
+    cancel.addEventListener('click', onCancel);
+    close.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onEscape);
+  });
+}
+
+function notifyAction(message, type = 'ai_access') {
+  showToast({ message, type });
+}
+
 // Toggle sidebar (mobile)
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('mobileOverlay').classList.toggle('show');
+}
+
+function toggleUsersSubmenu(button) {
+  const group = button.closest('.nav-group');
+  const expanded = group.classList.toggle('expanded');
+  button.setAttribute('aria-expanded', String(expanded));
 }
 
 // Format bytes ke human readable

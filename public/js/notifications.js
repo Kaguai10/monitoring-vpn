@@ -74,6 +74,7 @@ function renderNotifications(notifications) {
 async function markRead(id) {
   try {
     await api(`/api/notifications/${id}/read`, { method: 'PATCH' });
+    notifyAction('Notifikasi ditandai sudah dibaca.', 'ai_access');
     loadNotifications();
   } catch (err) {
     console.error('Mark read error:', err);
@@ -82,7 +83,11 @@ async function markRead(id) {
 
 async function markAllRead() {
   try {
+    const unread = await api('/api/notifications/unread-count');
+    if (!unread?.count) return notifyAction('Tidak ada notifikasi yang belum dibaca.', 'ai_access');
+    if (!await confirmAction({ title: 'Tandai semua notifikasi dibaca?', message: 'Status semua notifikasi yang belum dibaca akan diubah menjadi sudah dibaca.', details: [`Notifikasi terdampak: ${unread.count}`], confirmLabel: 'Tandai semua dibaca', variant: 'primary' })) return;
     await api('/api/notifications/read-all', { method: 'PATCH' });
+    notifyAction(`${unread.count} notifikasi ditandai sudah dibaca.`, 'ai_access');
     loadNotifications();
   } catch (err) {
     console.error('Mark all read error:', err);

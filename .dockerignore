@@ -1,4 +1,5 @@
 data
+local-backup
 node_modules
 *.log
 .env
@@ -9,4 +10,8 @@ node_modules
 ssl/
 *.key
 *.pem
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
 README.md

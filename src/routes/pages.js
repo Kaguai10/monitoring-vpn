@@ -33,6 +33,18 @@ router.get('/users', (req, res) => {
   });
 });
 
+router.get('/users/register', (req, res) => {
+  res.render('users-tools', { admin: req.session.admin, demoMode: config.demoMode, page: 'users-register', toolPage: 'register' });
+});
+
+router.get('/users/export', (req, res) => {
+  res.render('users-tools', { admin: req.session.admin, demoMode: config.demoMode, page: 'users-export', toolPage: 'export' });
+});
+
+router.get('/users/manage', (req, res) => {
+  res.render('users-tools', { admin: req.session.admin, demoMode: config.demoMode, page: 'users-manage', toolPage: 'manage' });
+});
+
 /**
  * User preview/detail
  */

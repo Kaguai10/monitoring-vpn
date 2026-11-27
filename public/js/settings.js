@@ -115,31 +115,25 @@ async function addBlockedDns() {
   const input = document.getElementById('newBlockedDns');
   const domain = input.value.trim().toLowerCase();
   if (!domain) return;
-
-  if (blockedDnsList.includes(domain)) return;
-
-  blockedDnsList.push(domain);
-  input.value = '';
-  renderBlockedDnsTags();
-  await saveBlockedDnsList();
+  if (blockedDnsList.includes(domain)) return notifyAction(`${domain} sudah ada di daftar blokir.`, 'blocked_dns');
+  if (!await confirmAction({ title: 'Tambah DNS ke daftar blokir?', message: `User VPN tidak akan bisa mengakses ${domain} melalui DNS setelah aturan diterapkan.`, details: [domain], confirmLabel: 'Tambah domain' })) return;
+  const next = [...blockedDnsList, domain];
+  try {
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ blockedDnsList: next }) });
+    blockedDnsList = next; input.value = ''; renderBlockedDnsTags();
+    notifyAction(`${domain} ditambahkan ke daftar DNS blokir.`, 'blocked_dns');
+  } catch (err) { notifyAction(`Gagal menambahkan ${domain}: ${err.message}`, 'blocked_dns'); }
 }
 
 // Remove blocked DNS
 async function removeBlockedDns(index) {
-  blockedDnsList.splice(index, 1);
-  renderBlockedDnsTags();
-  await saveBlockedDnsList();
-}
-
-async function saveBlockedDnsList() {
+  const domain = blockedDnsList[index];
+  if (!domain || !await confirmAction({ title: 'Hapus DNS dari daftar blokir?', message: `User VPN akan bisa mengakses ${domain} lagi setelah perubahan diterapkan.`, details: [domain], confirmLabel: 'Hapus domain' })) return;
+  const next = blockedDnsList.filter((_, i) => i !== index);
   try {
-    await api('/api/settings', {
-      method: 'PUT',
-      body: JSON.stringify({ blockedDnsList }),
-    });
-  } catch (err) {
-    console.error('Save blocked DNS error:', err);
-  }
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ blockedDnsList: next }) });
+    blockedDnsList = next; renderBlockedDnsTags(); notifyAction(`${domain} dihapus dari daftar DNS blokir.`, 'ai_access');
+  } catch (err) { notifyAction(`Gagal menghapus ${domain}: ${err.message}`, 'blocked_dns'); }
 }
 
 // Add AI DNS
@@ -150,47 +144,51 @@ async function addAiDns() {
   const service = serviceInput.value.trim() || domain;
   if (!domain) return;
 
-  // Check if already exists
-  if (aiDnsList.some(e => (typeof e === 'string' ? e : e.domain) === domain)) return;
-
-  aiDnsList.push({ domain, service });
-  domainInput.value = '';
-  serviceInput.value = '';
-  renderAiDnsTags();
-  await saveAiDnsList();
+  if (aiDnsList.some(e => (typeof e === 'string' ? e : e.domain) === domain)) return notifyAction(`${domain} sudah ada di daftar AI.`, 'ai_access');
+  const impact = aiBlockingEnabled ? 'Domain ini akan ikut diblokir bagi user VPN.' : 'Akses AI sedang diizinkan; domain hanya ditambahkan ke daftar pemantauan.';
+  if (!await confirmAction({ title: 'Tambah layanan AI?', message: `${service} (${domain}) akan ditambahkan. ${impact}`, details: [`Layanan: ${service}`, `Domain: ${domain}`], confirmLabel: 'Tambah layanan', variant: 'primary' })) return;
+  const next = [...aiDnsList, { domain, service }];
+  try {
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ aiDnsList: next }) });
+    aiDnsList = next; domainInput.value = ''; serviceInput.value = ''; renderAiDnsTags();
+    notifyAction(`${service} ditambahkan ke daftar AI.`, 'ai_access');
+  } catch (err) { notifyAction(`Gagal menambahkan ${service}: ${err.message}`, 'blocked_dns'); }
 }
 
 // Remove AI DNS
 async function removeAiDns(index) {
-  aiDnsList.splice(index, 1);
-  renderAiDnsTags();
-  await saveAiDnsList();
-}
-
-async function saveAiDnsList() {
+  const entry = aiDnsList[index];
+  if (!entry) return;
+  const domain = typeof entry === 'string' ? entry : entry.domain;
+  const service = typeof entry === 'string' ? entry : entry.service;
+  const impact = aiBlockingEnabled ? `User VPN akan dapat mengakses ${domain} karena tidak lagi diblokir sebagai AI.` : 'Domain dihapus dari daftar pemantauan AI.';
+  if (!await confirmAction({ title: 'Hapus layanan AI?', message: `${service} akan dihapus. ${impact}`, details: [`Layanan: ${service}`, `Domain: ${domain}`], confirmLabel: 'Hapus layanan' })) return;
+  const next = aiDnsList.filter((_, i) => i !== index);
   try {
-    await api('/api/settings', {
-      method: 'PUT',
-      body: JSON.stringify({ aiDnsList }),
-    });
-  } catch (err) {
-    console.error('Save AI DNS error:', err);
-  }
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ aiDnsList: next }) });
+    aiDnsList = next; renderAiDnsTags(); notifyAction(`${service} dihapus dari daftar AI.`, 'ai_access');
+  } catch (err) { notifyAction(`Gagal menghapus ${service}: ${err.message}`, 'blocked_dns'); }
 }
 
 async function setAiBlocking(enabled) {
   const toggle = document.getElementById('aiBlockingToggle');
   const previous = aiBlockingEnabled;
-  aiBlockingEnabled = enabled;
-  document.getElementById('aiBlockingLabel').textContent = enabled ? 'Blokir AI' : 'Izinkan AI';
+  toggle.disabled = true;
+  const message = enabled
+    ? `Seluruh domain dalam daftar AI (${aiDnsList.length} domain) akan diblokir bagi user VPN.`
+    : 'User VPN akan diizinkan mengakses domain layanan AI dalam daftar.';
+  if (!await confirmAction({ title: enabled ? 'Nyalakan blokir AI?' : 'Matikan blokir AI?', message, details: [`Domain dalam daftar: ${aiDnsList.length}`], confirmLabel: enabled ? 'Blokir AI' : 'Izinkan AI' })) {
+    toggle.checked = previous; toggle.disabled = false; return;
+  }
   try {
     await api('/api/settings', { method: 'PUT', body: JSON.stringify({ aiBlockingEnabled: enabled }) });
+    aiBlockingEnabled = enabled;
+    document.getElementById('aiBlockingLabel').textContent = enabled ? 'Blokir AI' : 'Izinkan AI';
+    notifyAction(enabled ? 'Blokir AI dinyalakan.' : 'Akses AI sekarang diizinkan.', 'ai_access');
   } catch (err) {
-    aiBlockingEnabled = previous;
     toggle.checked = previous;
-    document.getElementById('aiBlockingLabel').textContent = previous ? 'Blokir AI' : 'Izinkan AI';
-    console.error('Save AI block setting error:', err);
-  }
+    notifyAction(`Gagal mengubah akses AI: ${err.message}`, 'blocked_dns');
+  } finally { toggle.disabled = false; }
 }
 
 function renderVpnInternetAccessState() {
@@ -204,17 +202,21 @@ function renderVpnInternetAccessState() {
 async function setVpnInternetAccess(enabled) {
   const toggle = document.getElementById('vpnInternetToggle');
   const previous = vpnInternetAccessEnabled;
-  vpnInternetAccessEnabled = enabled;
-  renderVpnInternetAccessState();
   toggle.disabled = true;
+  const message = enabled
+    ? 'Akses internet publik akan dinyalakan kembali untuk seluruh user VPN.'
+    : 'Akses internet publik akan dimatikan untuk seluruh user VPN. Jaringan internal dan DNS VPN tetap dapat digunakan.';
+  if (!await confirmAction({ title: enabled ? 'Nyalakan akses internet VPN?' : 'Matikan akses internet VPN?', message, confirmLabel: enabled ? 'Nyalakan akses' : 'Matikan akses' })) {
+    toggle.checked = previous; toggle.disabled = false; return;
+  }
   try {
     await api('/api/settings', { method: 'PUT', body: JSON.stringify({ vpnInternetAccessEnabled: enabled }) });
+    vpnInternetAccessEnabled = enabled; renderVpnInternetAccessState();
+    notifyAction(enabled ? 'Akses internet VPN dinyalakan.' : 'Akses internet VPN dimatikan.', enabled ? 'ai_access' : 'blocked_dns');
   } catch (err) {
-    vpnInternetAccessEnabled = previous;
     toggle.checked = previous;
     renderVpnInternetAccessState();
-    console.error('Save VPN internet access setting error:', err);
-    alert(`Gagal menerapkan pengaturan: ${err.message}`);
+    notifyAction(`Gagal mengubah akses internet VPN: ${err.message}`, 'blocked_dns');
   } finally {
     toggle.disabled = false;
   }
@@ -245,6 +247,8 @@ document.getElementById('changePasswordForm')?.addEventListener('submit', async 
     return;
   }
 
+  if (!await confirmAction({ title: 'Ganti password admin?', message: 'Password baru akan langsung menggantikan password admin yang sekarang. Kamu harus menggunakan password baru pada login berikutnya.', confirmLabel: 'Ganti password', variant: 'primary' })) return;
+
   try {
     const res = await fetch('/change-password', {
       method: 'POST',
@@ -257,6 +261,7 @@ document.getElementById('changePasswordForm')?.addEventListener('submit', async 
       successDiv.textContent = data.message;
       successDiv.style.display = 'block';
       document.getElementById('changePasswordForm').reset();
+      notifyAction('Password admin berhasil diganti.', 'ai_access');
     } else {
       errorDiv.textContent = data.error || 'Gagal mengubah password';
       errorDiv.style.display = 'block';
@@ -290,7 +295,7 @@ async function confirmReset() {
     // Reset lastNotifId agar toast tidak flood setelah reset
     localStorage.setItem('lastNotifId', '0');
     hideResetModal();
-    alert('Data berhasil direset! Data VPN akan terisi otomatis dari WireGuard.');
+    alert('Data berhasil direset. Data VPN akan terisi otomatis dari WireGuard.');
     setTimeout(() => window.location.href = '/dashboard', 1000);
   } catch (err) {
     alert('Gagal reset: ' + err.message);

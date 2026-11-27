@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import db, {
-  updatePeerInfo,
   markNotificationRead,
   markAllNotificationsRead,
   getSetting,
@@ -14,6 +13,9 @@ import { writeDnsmasqBlocklist } from '../services/dns-blocklist.js';
 import { writeVpnInternetAccessState } from '../services/vpn-access.js';
 import config from '../config.js';
 import { getUserByIp } from '../services/user-directory.js';
+import { ensureTemplate, parseCsv, readUsers, stringifyUsers } from '../services/user-directory.js';
+import { addUsers, deleteAllUsers, deleteUser, editUser, exportClientConfigs, getTemplateCsv, getUserManagementMeta, previewUserImport, replaceUsers, restoreTemplateUsers } from '../services/user-management.js';
+import { zipFiles } from '../utils/zip.js';
 
 const router = Router();
 
@@ -128,14 +130,130 @@ router.get('/dashboard', (req, res) => {
 // USERS API
 // ============================================================
 
+function sendUserError(res, error) {
+  const status = error.details ? 400 : 400;
+  res.status(status).json({ error: error.message, details: error.details || [] });
+}
+
+function parseImportedUsers(csvText) {
+  if (typeof csvText !== 'string' || !csvText.trim()) throw new Error('File CSV kosong.');
+  const rows = parseCsv(csvText.replace(/^\uFEFF/, ''));
+  if (rows.length < 2) throw new Error('CSV harus memiliki header dan minimal satu user.');
+  const headers = rows[0].map(value => value.trim().toLowerCase());
+  const indexes = { name: headers.indexOf('name'), email: headers.indexOf('email'), target_file: headers.indexOf('target_file'), ip: headers.indexOf('ip vpn') };
+  const missing = Object.entries({ name: 'name', email: 'email', target_file: 'target_file', ip: 'IP VPN' }).filter(([key]) => indexes[key] < 0).map(([, label]) => label);
+  if (missing.length) throw new Error(`Header CSV wajib mencakup: ${missing.join(', ')}.`);
+  return rows.slice(1).map(values => ({
+    name: values[indexes.name] || '', email: values[indexes.email] || '', target_file: values[indexes.target_file] || '', ip: values[indexes.ip] || '',
+  })).filter(user => Object.values(user).some(value => value.trim()));
+}
+
+router.get('/users/manage/meta', (req, res) => {
+  try { res.json(getUserManagementMeta()); }
+  catch (error) { sendUserError(res, error); }
+});
+
+router.get('/users/export.csv', (req, res) => {
+  const body = stringifyUsers(readUsers());
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="vpn-users.csv"');
+  res.send('\uFEFF' + body);
+});
+
+router.get('/users/template.csv', (req, res) => {
+  try {
+    ensureTemplate();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="vpn-users-template.csv"');
+    res.send('\uFEFF' + getTemplateCsv());
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.post('/users/manual', (req, res) => {
+  try {
+    const { name, email, ip } = req.body || {};
+    if (!name?.trim() || !email?.trim() || !ip?.trim()) throw new Error('Nama, email, dan IP VPN wajib diisi.');
+    const target_file = `${name.trim().normalize('NFKD').replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^\.+|\.+$/g, '').slice(0, 55) || 'client'}.conf`;
+    addUsers([{ name: name.trim(), email: email.trim(), ip: ip.trim(), target_file }]);
+    res.json({ success: true, message: 'User dan konfigurasi WireGuard berhasil dibuat.' });
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.post('/users/import', (req, res) => {
+  try {
+    const users = parseImportedUsers(req.body?.csvText);
+    const strategy = req.body?.strategy;
+    if (strategy === 'append') {
+      addUsers(users);
+      return res.json({ success: true, message: `${users.length} user berhasil ditambahkan.` });
+    }
+    if (strategy === 'replace') {
+      replaceUsers(users);
+      return res.json({ success: true, message: `Daftar diganti dengan ${users.length} user.` });
+    }
+    throw new Error('Pilih apakah CSV akan ditambahkan atau mengganti daftar saat ini.');
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.post('/users/import/preview', (req, res) => {
+  try {
+    const users = parseImportedUsers(req.body?.csvText);
+    const count = previewUserImport(users, req.body?.strategy);
+    res.json({ success: true, count, users: users.map(({ name, email, ip }) => ({ name, email, ip })), message: `CSV valid: ${count} user, tidak ditemukan duplikat.` });
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.post('/users/restore-template', (req, res) => {
+  try {
+    const count = restoreTemplateUsers();
+    res.json({ success: true, message: `${count} user awal berhasil dipulihkan.` });
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.post('/users/delete-all', (req, res) => {
+  try {
+    const count = deleteAllUsers();
+    res.json({ success: true, message: `${count} user dihapus. Template CSV tetap tersedia.` });
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.delete('/users/:ip', (req, res) => {
+  try {
+    const user = deleteUser(req.params.ip);
+    res.json({ success: true, message: `User ${user.name} (${user.ip}) berhasil dihapus.` });
+  } catch (error) { sendUserError(res, error); }
+});
+
+router.get('/users/export-configs', (req, res) => {
+  try {
+    const requested = req.query.ips === 'all' ? readUsers().map(user => user.ip) : String(req.query.ips || '').split(',').filter(Boolean);
+    if (!requested.length) throw new Error('Pilih minimal satu user.');
+    const files = exportClientConfigs(requested);
+    if (files.length === 1) {
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${files[0].name}"`);
+      return res.send(files[0].data);
+    }
+    const archive = zipFiles(files);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="vpn-users-configs.zip"');
+    res.send(archive);
+  } catch (error) { sendUserError(res, error); }
+});
+
 router.get('/users', (req, res) => {
-  const peers = db.prepare(`
+  let peers = db.prepare(`
     SELECT ip_address, name, email, endpoint, is_connected,
            last_handshake, handshake_ts, rx_bytes, tx_bytes,
            first_seen, updated_at
     FROM vpn_peers
     ORDER BY is_connected DESC, name ASC
   `).all();
+
+  if (!config.demoMode) {
+    const activeIps = new Set(readUsers().map(user => user.ip));
+    peers = peers.filter(peer => activeIps.has(peer.ip_address));
+  }
 
   const result = peers.map(p => ({
     ...p,
@@ -298,18 +416,12 @@ router.get('/users/:ip/connections', (req, res) => {
   });
 });
 
-// Update user info (name, email)
+// Update user directory and WireGuard client details.
 router.patch('/users/:ip', (req, res) => {
-  const { ip } = req.params;
-  const { name, email } = req.body;
-
-  const peer = db.prepare('SELECT * FROM vpn_peers WHERE ip_address = ?').get(ip);
-  if (!peer) {
-    return res.status(404).json({ error: 'User tidak ditemukan' });
-  }
-
-  updatePeerInfo(ip, name || peer.name, email || peer.email);
-  res.json({ success: true, message: 'Info user berhasil diupdate' });
+  try {
+    const result = editUser(req.params.ip, req.body || {});
+    res.json({ success: true, ...result });
+  } catch (error) { sendUserError(res, error); }
 });
 
 // ============================================================

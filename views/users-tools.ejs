@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><%- include('partials/head', { title: toolPage === 'register' ? 'Registrasi user' : toolPage === 'export' ? 'Ekspor VPN config' : 'Manage user' }) %></head>
+<body>
+  <%- include('partials/nav', { admin, demoMode, page }) %>
+  <main class="main-content">
+    <header class="page-header">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div><h1><%= toolPage === 'register' ? 'Registrasi user' : toolPage === 'export' ? 'Ekspor VPN config' : 'Manage user' %></h1><p class="page-subtitle">Users / <%= toolPage === 'register' ? 'Registrasi' : toolPage === 'export' ? 'Ekspor config' : 'Pengelolaan' %></p></div>
+      <div class="header-right"><a class="btn-secondary" href="/users">Kembali ke daftar user</a></div>
+    </header>
+
+    <% if (toolPage === 'register') { %>
+    <section class="users-tool-panel">
+      <div class="users-tool-heading"><div><span class="section-kicker">REGISTRASI</span><h2>Tambah user manual</h2></div></div>
+      <form id="manualUserForm" class="user-tool-card">
+        <div class="users-tool-grid">
+          <div class="form-group"><label for="newUserName">Nama</label><input id="newUserName" name="name" required maxlength="80" placeholder="Nama user"></div>
+          <div class="form-group"><label for="newUserEmail">Email</label><input id="newUserEmail" name="email" type="email" required maxlength="160" placeholder="user@example.com"></div>
+          <div class="form-group"><label for="newUserIp">IP VPN yang tersedia</label><select id="newUserIp" name="ip" required><option value="">Memuat IP...</option></select><small class="form-hint" id="availableIpsHint"></small></div>
+        </div>
+        <button class="btn-primary" type="submit">Buat user dan config</button>
+      </form>
+    </section>
+    <section class="users-tool-panel">
+      <div class="users-tool-heading"><div><span class="section-kicker">IMPORT</span><h2>Import dari CSV</h2></div><div class="users-tool-actions"><a class="btn-secondary" href="/api/users/template.csv">Unduh template</a></div></div>
+      <p class="settings-desc">Gunakan kolom <code>name,email,password,affiliation,target_file,IP VPN</code>. Password dan affiliation diabaikan.</p>
+      <label class="file-picker" for="userCsvFile"><span>Pilih file CSV</span><input id="userCsvFile" type="file" accept=".csv,text/csv"></label>
+      <div class="csv-import-controls" id="csvImportControls" hidden><label for="csvImportStrategy">Cara memasukkan file</label><select id="csvImportStrategy"><option value="append">Tambah user baru</option><option value="replace">Ganti daftar user saat ini</option></select><button class="btn-primary" id="previewCsvButton" type="button">Periksa file CSV</button></div>
+      <div class="csv-preview" id="csvPreview" hidden></div>
+    </section>
+    <section class="users-tool-panel"><a class="btn-secondary" href="/api/users/export.csv">Ekspor daftar user sebagai CSV</a></section>
+    <% } else if (toolPage === 'export') { %>
+    <section class="users-tool-panel">
+      <div class="users-tool-heading"><div><span class="section-kicker">KONFIGURASI VPN</span><h2>Pilih user untuk diunduh</h2></div></div>
+      <div class="config-export-bar"><span id="selectedConfigCount">0 user dipilih</span><div class="users-tool-actions"><button class="btn-secondary" id="downloadSelectedConfigs" type="button" disabled>Unduh yang dipilih</button><button class="btn-primary" id="downloadAllConfigs" type="button">Unduh semua user</button></div></div>
+      <p class="settings-desc">Satu pilihan diunduh sebagai file <code>.conf</code>; beberapa pilihan digabung ke ZIP.</p>
+      <div class="user-table-wrap"><table class="user-data-table"><thead><tr><th>Pilih</th><th><button class="user-sort" data-table="export" data-sort="name" type="button">Nama <span></span></button></th><th><button class="user-sort" data-table="export" data-sort="email" type="button">Email <span></span></button></th><th><button class="user-sort" data-table="export" data-sort="ip" type="button">IP <span></span></button></th></tr></thead><tbody id="exportUserList"><tr><td colspan="4">Memuat user...</td></tr></tbody></table></div>
+      <div id="noUsers" class="empty-state" style="display:none"><p>Belum ada user untuk diekspor</p></div>
+    </section>
+    <% } else { %>
+    <section class="users-tool-panel manage-users-panel">
+      <div class="users-tool-heading"><div><span class="section-kicker">PENGELOLAAN</span><h2>Kelola daftar user</h2></div></div>
+      <p class="settings-desc">Pulihkan user dari template awal atau hapus seluruh user beserta peer WireGuard dan file conf-nya.</p>
+      <div class="manage-action-grid">
+        <article class="user-tool-card"><h3>Pulihkan user awal</h3><p class="settings-desc">Mengganti daftar saat ini dengan user yang tersimpan di template.</p><button class="btn-secondary" id="restoreTemplateUsers" type="button">Reset ke 15 user awal</button></article>
+        <article class="user-tool-card"><h3>Hapus semua user</h3><p class="settings-desc">Menghapus semua peer VPN dan file konfigurasi client.</p><button class="btn-danger" id="deleteAllUsers" type="button">Hapus semua user</button></article>
+      </div>
+    </section>
+    <section class="users-tool-panel">
+      <div class="users-tool-heading"><div><span class="section-kicker">EDIT AKUN</span><h2>Edit data per user</h2></div></div>
+      <p class="settings-desc">Nama dan email bisa diubah langsung. Perubahan IP memperbarui daftar VPN dan file config milik user; IP harus masih kosong dalam rentang client.</p>
+      <datalist id="availableUserIps"></datalist>
+      <div class="user-table-wrap"><table class="user-data-table manage-users-table"><thead><tr><th><button class="user-sort" data-table="manage" data-sort="name" type="button">Nama <span></span></button></th><th><button class="user-sort" data-table="manage" data-sort="email" type="button">Email <span></span></button></th><th><button class="user-sort" data-table="manage" data-sort="ip" type="button">IP <span></span></button></th><th>Aksi</th></tr></thead><tbody id="manageUserList"><tr><td colspan="4">Memuat user...</td></tr></tbody></table></div>
+      <div class="empty-state" id="manageUsersEmpty" style="display:none"><p>Belum ada user yang bisa diedit</p></div>
+    </section>
+    <% } %>
+  </main>
+
+  <%- include('partials/footer', { jsFile: 'users' }) %>
+</body>
+</html>

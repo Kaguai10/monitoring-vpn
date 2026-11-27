@@ -31,10 +31,9 @@ services:
       # dnsmasq log (read-only)
       - ${DNSMASQ_LOG_PATH:-/var/log/dnsmasq.log}:${DNSMASQ_LOG_PATH:-/var/log/dnsmasq.log}:ro
       - /var/lib/webvpn:/var/lib/webvpn:rw
-      # WireGuard config untuk info peer (read-only)
-      - ${WG_CONFIG_PATH:-/etc/wireguard/wg0.conf}:${WG_CONFIG_PATH:-/etc/wireguard/wg0.conf}:ro
-      # Direktori user VPN (read-only)
-      - ./data/participants.csv:/app/data/participants.csv:ro
+      # User management updates the persistent peer list and client configs.
+      - ${WG_CONFIG_PATH:-/etc/wireguard/wg0.conf}:${WG_CONFIG_PATH:-/etc/wireguard/wg0.conf}:rw
+      - /etc/wireguard/clients:/etc/wireguard/clients:rw
       # Timezone WIB
       - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
       - /etc/localtime:/etc/localtime:ro

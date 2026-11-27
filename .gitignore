@@ -9,6 +9,13 @@ npm-debug.log*
 ssl/
 *.key
 *.pem
+local-backup/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.backup.*
 dist/
+.coverage/
 .DS_Store
 Thumbs.db

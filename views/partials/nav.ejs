@@ -24,7 +24,9 @@
       <span>Dashboard</span>
     </a>
 
-    <a href="/users" class="nav-item <%= page === 'users' ? 'active' : '' %>">
+    <div class="nav-group <%= page.startsWith('users') ? 'expanded' : '' %>">
+    <div class="nav-item nav-parent <%= page.startsWith('users') ? 'active' : '' %>">
+      <a href="/users" class="nav-main-link">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
         <circle cx="9" cy="7" r="4"/>
@@ -32,7 +34,18 @@
         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
       <span>Users</span>
-    </a>
+      </a>
+      <button class="nav-expand" type="button" aria-label="Buka submenu Users" aria-expanded="<%= page.startsWith('users') ? 'true' : 'false' %>" onclick="toggleUsersSubmenu(this)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="nav-submenu">
+      <a class="<%= page === 'users' ? 'active' : '' %>" href="/users">Daftar user</a>
+      <a class="<%= page === 'users-register' ? 'active' : '' %>" href="/users/register">Registrasi user</a>
+      <a class="<%= page === 'users-export' ? 'active' : '' %>" href="/users/export">Ekspor VPN config</a>
+      <a class="<%= page === 'users-manage' ? 'active' : '' %>" href="/users/manage">Manage user</a>
+    </div>
+    </div>
 
     <a href="/notifications" class="nav-item <%= page === 'notifications' ? 'active' : '' %>" id="nav-notif">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -75,3 +88,14 @@
 
 <!-- Toast Notification Container -->
 <div class="toast-container" id="toastContainer"></div>
+
+<div class="modal-overlay action-confirm-overlay" id="actionConfirmModal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="actionConfirmTitle">
+  <div class="modal-box">
+    <div class="modal-header"><h2 id="actionConfirmTitle">Konfirmasi tindakan</h2><button class="modal-close" id="actionConfirmClose" type="button" aria-label="Tutup">&times;</button></div>
+    <div class="modal-body">
+      <p class="modal-desc" id="actionConfirmMessage"></p>
+      <ul class="action-confirm-details" id="actionConfirmDetails" hidden></ul>
+      <div class="modal-actions"><button class="btn-secondary" id="actionConfirmCancel" type="button">Batal</button><button class="btn-danger" id="actionConfirmAccept" type="button">Lanjutkan</button></div>
+    </div>
+  </div>
+</div>

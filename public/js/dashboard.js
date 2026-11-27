@@ -227,15 +227,20 @@ async function toggleMonitor() {
   try {
     const data = await api('/api/monitor/status');
     if (data.active) {
+      if (!await confirmAction({ title: 'Hentikan monitoring?', message: 'Pemantauan koneksi WireGuard dan aktivitas DNS akan berhenti sampai monitoring dinyalakan lagi.', confirmLabel: 'Hentikan monitoring' })) return;
       await api('/api/monitor/stop', { method: 'POST' });
       updateMonitorUI(false);
+      notifyAction('Monitoring dihentikan.', 'blocked_dns');
     } else {
+      if (!await confirmAction({ title: 'Nyalakan monitoring?', message: 'Pemantauan koneksi WireGuard dan aktivitas DNS akan berjalan kembali.', confirmLabel: 'Nyalakan monitoring', variant: 'primary' })) return;
       await api('/api/monitor/start', { method: 'POST' });
       updateMonitorUI(true);
       loadDashboard(); // Refresh data immediately after starting
+      notifyAction('Monitoring dinyalakan.', 'ai_access');
     }
   } catch (e) {
     console.error('Monitor toggle error:', e);
+    notifyAction(`Gagal mengubah monitoring: ${e.message}`, 'blocked_dns');
   }
 }
 
